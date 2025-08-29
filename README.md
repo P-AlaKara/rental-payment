@@ -1,6 +1,6 @@
 # Car Rental Payments (Flask)
 
-Implements a workflow: Pay Advantage hosted payment authority (Basic Auth with API username/password), Xero invoice creation (OAuth2), UCollect bridge, and reconciliation back to Xero.
+Implements a workflow: UCollect-hosted payment authority (org-specific URL), Xero invoice creation (OAuth2), UCollect bridge, and reconciliation back to Xero.
 
 ## Quickstart
 
@@ -27,12 +27,8 @@ Open `http://localhost:5000` and complete the flow.
 
 ## Notes
 
-- Pay Advantage uses Basic Auth. Set in `.env`:
-  - `PAYADV_USERNAME=your-api-username`
-  - `PAYADV_PASSWORD=your-api-password`
-  - Optionally edit `PAYADV_BASE_URL` and `PAYADV_HOSTED_URL` if your environment differs.
+- UCollect-hosted authority URL: set in `.env` as `UCOLLECT_HOSTED_AUTH_URL=https://...` (org-specific). The booking flow redirects customers there to capture the mandate; UCollect links it to the Xero contact and handles payments for approved invoices.
 - Xero requires a one-time OAuth connect at `/xero/connect`. Tokens are persisted and refreshed automatically.
-- Replace service clients in `app/services/*.py` with your production endpoints when ready.
 - Uses SQLite by default at `instance/app.db`.
 
 This is a car rental payment module with xero, ucollect and pay advantage.

@@ -24,6 +24,7 @@ class BaseConfig:
     XERO_TENANT_ID = os.getenv("XERO_TENANT_ID", "")
 
     UCOLLECT_API_KEY = os.getenv("UCOLLECT_API_KEY", "")
+    UCOLLECT_HOSTED_AUTH_URL = os.getenv("UCOLLECT_HOSTED_AUTH_URL", "")
 
     PAYADV_USERNAME = os.getenv("PAYADV_USERNAME", "")
     PAYADV_PASSWORD = os.getenv("PAYADV_PASSWORD", "")

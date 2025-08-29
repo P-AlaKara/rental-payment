@@ -8,6 +8,7 @@ from flask import current_app
 
 class PayAdvantageClient:
     def __init__(self):
+        # Deprecated in UCollect-centered flow
         self.username = current_app.config.get("PAYADV_USERNAME", "")
         self.password = current_app.config.get("PAYADV_PASSWORD", "")
         self.base_url = current_app.config.get("PAYADV_BASE_URL", "https://api.payadvantage.com.au")

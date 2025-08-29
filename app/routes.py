@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from . import db
 from .models import Customer, Invoice, InvoiceStatus, PaymentStatus
-from .services.payadv_service import PayAdvantageClient
 from .services.xero_service import XeroClient, _save_auth, get_valid_access_token
 from .services.ucollect_service import UCollectBridge
 from authlib.integrations.flask_client import OAuth
@@ -44,28 +43,27 @@ def start_booking():
     db.session.add(invoice)
     db.session.commit()
 
-    # Create direct debit request link (hosted authorization)
-    payadv = PayAdvantageClient()
-    redirect_url = url_for("main.hosted_callback", _external=True)
-    hosted = payadv.create_direct_debit_link(name=name, email=email, mobile=mobile, reference=booking_id, redirect_url=redirect_url)
+    # Redirect customer to UCollect-hosted authority page for your org
+    ucollect_url = current_app.config.get("UCOLLECT_HOSTED_AUTH_URL")
+    if not ucollect_url:
+        flash("UCOLLECT_HOSTED_AUTH_URL is not configured.")
+        return redirect(url_for("main.index"))
 
-    # Store token temporarily when callback returns
-    current_app.logger.info("Direct debit link created: %s", hosted)
-    return redirect(hosted["hosted_url"])
+    # Some UCollect links accept prefill query params; we append if present
+    from urllib.parse import urlencode
+    params = {"name": name, "email": email, "mobile": mobile, "reference": booking_id}
+    return redirect(f"{ucollect_url}?{urlencode(params)}")
 
 
 @bp.get("/hosted")
 def hosted_page():
-    # Simulated hosted page; in production this is on Pay Advantage domain
-    token = request.args.get("token")
-    name = request.args.get("name")
-    email = request.args.get("email")
-    redirect_url = request.args.get("redirect")
-    return render_template("hosted_payment.html", token=token, name=name, email=email, redirect_url=redirect_url)
+    # No longer used when redirecting to UCollect-hosted page, kept for reference
+    return redirect(url_for("main.index"))
 
 
 @bp.route("/hosted/callback", methods=["GET", "POST"])
 def hosted_callback():
+    # If UCollect redirects back with an indicator we can mark authority captured
     token = request.values.get("token")
     email = request.values.get("email")
 
@@ -74,8 +72,11 @@ def hosted_callback():
         flash("Customer not found for callback")
         return redirect(url_for("main.index"))
 
-    customer.payadv_customer_id = customer.payadv_customer_id or f"cust_{customer.id}"
-    customer.payadv_token = token
+    # In the UCollect model, Pay Advantage token linkage happens in UCollect/Xero.
+    # If UCollect provides a token/id back, store it; otherwise proceed without it.
+    if token:
+        customer.payadv_customer_id = customer.payadv_customer_id or f"cust_{customer.id}"
+        customer.payadv_token = token
     db.session.commit()
 
     # Create and approve an invoice in Xero, then simulate UCollect sync and payment
