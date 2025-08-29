@@ -25,9 +25,8 @@ class BaseConfig:
 
     UCOLLECT_API_KEY = os.getenv("UCOLLECT_API_KEY", "")
 
-    PAYADV_API_KEY = os.getenv("PAYADV_API_KEY", "")
-    PAYADV_PUBLIC_KEY = os.getenv("PAYADV_PUBLIC_KEY", "")
-    PAYADV_WEBHOOK_SECRET = os.getenv("PAYADV_WEBHOOK_SECRET", "")
+    PAYADV_USERNAME = os.getenv("PAYADV_USERNAME", "")
+    PAYADV_PASSWORD = os.getenv("PAYADV_PASSWORD", "")
     PAYADV_BASE_URL = os.getenv("PAYADV_BASE_URL", "https://api.payadvantage.com.au")
     PAYADV_HOSTED_URL = os.getenv("PAYADV_HOSTED_URL", "https://portal.payadvantage.com.au")
 

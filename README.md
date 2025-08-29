@@ -1,6 +1,6 @@
 # Car Rental Payments (Flask)
 
-Implements a simulated workflow: Pay Advantage hosted payment authority, Xero invoice creation, UCollect bridge, and reconciliation back to Xero.
+Implements a workflow: Pay Advantage hosted payment authority (Basic Auth with API username/password), Xero invoice creation (OAuth2), UCollect bridge, and reconciliation back to Xero.
 
 ## Quickstart
 
@@ -27,8 +27,12 @@ Open `http://localhost:5000` and complete the flow.
 
 ## Notes
 
-- This project mocks external APIs for Pay Advantage, Xero, and UCollect.
-- Replace service clients in `app/services/*.py` to integrate real APIs.
+- Pay Advantage uses Basic Auth. Set in `.env`:
+  - `PAYADV_USERNAME=your-api-username`
+  - `PAYADV_PASSWORD=your-api-password`
+  - Optionally edit `PAYADV_BASE_URL` and `PAYADV_HOSTED_URL` if your environment differs.
+- Xero requires a one-time OAuth connect at `/xero/connect`. Tokens are persisted and refreshed automatically.
+- Replace service clients in `app/services/*.py` with your production endpoints when ready.
 - Uses SQLite by default at `instance/app.db`.
 
 This is a car rental payment module with xero, ucollect and pay advantage.
