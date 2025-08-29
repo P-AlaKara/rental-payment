@@ -1,12 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from . import db
 from .models import Customer, Invoice, InvoiceStatus, PaymentStatus
-from .services.payadv_service import PayAdvantageClient
-from .services.xero_service import XeroClient
+from .services.xero_service import XeroClient, _save_auth, get_valid_access_token
 from .services.ucollect_service import UCollectBridge
+from authlib.integrations.flask_client import OAuth
 
 
 bp = Blueprint("main", __name__)
+oauth = OAuth()
 
 
 @bp.get("/")
@@ -18,11 +19,12 @@ def index():
 def start_booking():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
+    mobile = request.form.get("mobile", "").strip()
     booking_id = request.form.get("booking_id", "").strip()
     amount = float(request.form.get("amount", 0))
     amount_cents = int(round(amount * 100))
 
-    if not (name and email and booking_id and amount_cents > 0):
+    if not (name and email and mobile and booking_id and amount_cents > 0):
         flash("All fields are required and amount must be positive.")
         return redirect(url_for("main.index"))
 
@@ -41,44 +43,57 @@ def start_booking():
     db.session.add(invoice)
     db.session.commit()
 
-    # Create hosted payment authority session
-    payadv = PayAdvantageClient()
-    redirect_url = url_for("main.hosted_callback", _external=True)
-    session = payadv.create_customer_and_authority(name=name, email=email, redirect_url=redirect_url)
+    # Redirect customer to UCollect-hosted authority page for your org
+    ucollect_url = current_app.config.get("UCOLLECT_HOSTED_AUTH_URL")
+    if not ucollect_url:
+        flash("UCOLLECT_HOSTED_AUTH_URL is not configured.")
+        return redirect(url_for("main.index"))
 
-    # Store token temporarily when callback returns
-    current_app.logger.info("Hosted session created: %s", session)
-    return redirect(session["hosted_url"])
+    # Some UCollect links accept prefill query params; we append if present
+    from urllib.parse import urlencode
+    params = {"name": name, "email": email, "mobile": mobile, "reference": booking_id}
+    return redirect(f"{ucollect_url}?{urlencode(params)}")
 
 
 @bp.get("/hosted")
 def hosted_page():
-    # Simulated hosted page; in production this is on Pay Advantage domain
-    token = request.args.get("token")
-    name = request.args.get("name")
-    email = request.args.get("email")
-    redirect_url = request.args.get("redirect")
-    return render_template("hosted_payment.html", token=token, name=name, email=email, redirect_url=redirect_url)
+    # No longer used when redirecting to UCollect-hosted page, kept for reference
+    return redirect(url_for("main.index"))
 
 
-@bp.post("/hosted/callback")
+@bp.route("/hosted/callback", methods=["GET", "POST"])
 def hosted_callback():
-    token = request.form.get("token")
-    email = request.form.get("email")
+    # If UCollect redirects back with an indicator we can mark authority captured
+    token = request.values.get("token")
+    email = request.values.get("email")
 
     customer = Customer.query.filter_by(email=email).first()
     if not customer:
         flash("Customer not found for callback")
         return redirect(url_for("main.index"))
 
-    customer.payadv_customer_id = customer.payadv_customer_id or f"cust_{customer.id}"
-    customer.payadv_token = token
+    # In the UCollect model, Pay Advantage token linkage happens in UCollect/Xero.
+    # If UCollect provides a token/id back, store it; otherwise proceed without it.
+    if token:
+        customer.payadv_customer_id = customer.payadv_customer_id or f"cust_{customer.id}"
+        customer.payadv_token = token
     db.session.commit()
 
     # Create and approve an invoice in Xero, then simulate UCollect sync and payment
     invoice = Invoice.query.filter_by(customer_id=customer.id).order_by(Invoice.id.desc()).first()
+    # Ensure we have Xero OAuth access token persisted
+    access_token = get_valid_access_token()
+    if not access_token:
+        flash("Connect to Xero first.")
+        return redirect(url_for("main.xero_connect"))
+
     xero = XeroClient()
-    xero_inv = xero.create_and_approve_invoice(contact_name=customer.name, contact_email=customer.email, amount_cents=invoice.amount_cents, reference=invoice.booking_id)
+    xero_inv = xero.create_and_approve_invoice(
+        contact_name=customer.name,
+        contact_email=customer.email,
+        amount_cents=invoice.amount_cents,
+        reference=invoice.booking_id,
+    )
     invoice.xero_invoice_id = xero_inv["id"]
     invoice.status = InvoiceStatus.APPROVED
     db.session.commit()
@@ -107,4 +122,45 @@ def invoice_view(invoice_id: int):
 def admin():
     customers = Customer.query.all()
     return render_template("admin.html", customers=customers)
+
+
+# --- Xero OAuth ---
+@bp.before_app_first_request
+def init_oauth():
+    oauth.init_app(current_app)
+    oauth.register(
+        name="xero",
+        client_id=current_app.config["XERO_CLIENT_ID"],
+        client_secret=current_app.config["XERO_CLIENT_SECRET"],
+        api_base_url="https://api.xero.com/",
+        access_token_url="https://identity.xero.com/connect/token",
+        authorize_url="https://login.xero.com/identity/connect/authorize",
+        client_kwargs={
+            "scope": current_app.config["XERO_SCOPES"],
+        },
+    )
+
+
+@bp.get("/xero/connect")
+def xero_connect():
+    redirect_uri = current_app.config["XERO_REDIRECT_URI"]
+    return oauth.xero.authorize_redirect(redirect_uri)
+
+
+@bp.get("/xero/callback")
+def xero_callback():
+    token = oauth.xero.authorize_access_token()
+    # Discover tenant id if not configured
+    access_token = token.get("access_token")
+    headers = {"Authorization": f"Bearer {access_token}"}
+    try:
+        r = requests.get("https://api.xero.com/connections", headers=headers, timeout=30)
+        r.raise_for_status()
+        connections = r.json()
+        tenant_id = connections[0]["tenantId"] if isinstance(connections, list) and connections else None
+    except Exception:  # noqa: BLE001 - best-effort
+        tenant_id = None
+    _save_auth(token, tenant_id=tenant_id)
+    flash("Connected to Xero.")
+    return redirect(url_for("main.index"))
 
