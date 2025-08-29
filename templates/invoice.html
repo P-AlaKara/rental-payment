@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice {{ invoice.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Invoice {{ invoice.xero_invoice_id or invoice.id }}</h2>
+  <p>Status: <strong>{{ invoice.status }}</strong></p>
+  <p>Customer: {{ customer.name }} ({{ customer.email }})</p>
+  <p>Booking ref: {{ invoice.booking_id }}</p>
+  <p>Amount: ${{ '%.2f' % (invoice.amount_cents / 100.0) }}</p>
+  <p><a href="/">Create another</a></p>
+</div>
+{% endblock %}
+

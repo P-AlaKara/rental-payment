@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Car Rental PayFlow{% endblock %}</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+      .container { max-width: 720px; margin: 0 auto; }
+      header { margin-bottom: 1rem; }
+      nav a { margin-right: 1rem; }
+      input, button { font-size: 1rem; padding: 0.5rem; }
+      label { display: block; margin-top: 0.75rem; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Car Rental Payments</h1>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/admin">Admin</a>
+        </nav>
+      </header>
+      {% block content %}{% endblock %}
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <ul>
+            {% for m in messages %}
+              <li>{{ m }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+    </div>
+  </body>
+  </html>
+
