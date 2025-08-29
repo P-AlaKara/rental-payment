@@ -16,6 +16,11 @@ class BaseConfig:
     # External integrations
     XERO_CLIENT_ID = os.getenv("XERO_CLIENT_ID", "")
     XERO_CLIENT_SECRET = os.getenv("XERO_CLIENT_SECRET", "")
+    XERO_REDIRECT_URI = os.getenv("XERO_REDIRECT_URI", "http://localhost:5000/xero/callback")
+    XERO_SCOPES = os.getenv(
+        "XERO_SCOPES",
+        "offline_access accounting.transactions accounting.contacts accounting.settings openid profile email",
+    )
     XERO_TENANT_ID = os.getenv("XERO_TENANT_ID", "")
 
     UCOLLECT_API_KEY = os.getenv("UCOLLECT_API_KEY", "")
@@ -23,6 +28,8 @@ class BaseConfig:
     PAYADV_API_KEY = os.getenv("PAYADV_API_KEY", "")
     PAYADV_PUBLIC_KEY = os.getenv("PAYADV_PUBLIC_KEY", "")
     PAYADV_WEBHOOK_SECRET = os.getenv("PAYADV_WEBHOOK_SECRET", "")
+    PAYADV_BASE_URL = os.getenv("PAYADV_BASE_URL", "https://api.payadvantage.com.au")
+    PAYADV_HOSTED_URL = os.getenv("PAYADV_HOSTED_URL", "https://portal.payadvantage.com.au")
 
     BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 

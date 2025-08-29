@@ -1,12 +1,14 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, session
 from . import db
 from .models import Customer, Invoice, InvoiceStatus, PaymentStatus
 from .services.payadv_service import PayAdvantageClient
 from .services.xero_service import XeroClient
 from .services.ucollect_service import UCollectBridge
+from authlib.integrations.flask_client import OAuth
 
 
 bp = Blueprint("main", __name__)
+oauth = OAuth()
 
 
 @bp.get("/")
@@ -44,11 +46,11 @@ def start_booking():
     # Create hosted payment authority session
     payadv = PayAdvantageClient()
     redirect_url = url_for("main.hosted_callback", _external=True)
-    session = payadv.create_customer_and_authority(name=name, email=email, redirect_url=redirect_url)
+    hosted = payadv.create_customer_and_authority(name=name, email=email, redirect_url=redirect_url)
 
     # Store token temporarily when callback returns
-    current_app.logger.info("Hosted session created: %s", session)
-    return redirect(session["hosted_url"])
+    current_app.logger.info("Hosted session created: %s", hosted)
+    return redirect(hosted["hosted_url"])
 
 
 @bp.get("/hosted")
@@ -61,10 +63,10 @@ def hosted_page():
     return render_template("hosted_payment.html", token=token, name=name, email=email, redirect_url=redirect_url)
 
 
-@bp.post("/hosted/callback")
+@bp.route("/hosted/callback", methods=["GET", "POST"])
 def hosted_callback():
-    token = request.form.get("token")
-    email = request.form.get("email")
+    token = request.values.get("token")
+    email = request.values.get("email")
 
     customer = Customer.query.filter_by(email=email).first()
     if not customer:
@@ -77,8 +79,20 @@ def hosted_callback():
 
     # Create and approve an invoice in Xero, then simulate UCollect sync and payment
     invoice = Invoice.query.filter_by(customer_id=customer.id).order_by(Invoice.id.desc()).first()
+    # Ensure we have Xero OAuth access token
+    access_token = session.get("xero_access_token")
+    if not access_token:
+        flash("Connect to Xero first.")
+        return redirect(url_for("main.xero_connect"))
+
     xero = XeroClient()
-    xero_inv = xero.create_and_approve_invoice(contact_name=customer.name, contact_email=customer.email, amount_cents=invoice.amount_cents, reference=invoice.booking_id)
+    xero_inv = xero.create_and_approve_invoice(
+        contact_name=customer.name,
+        contact_email=customer.email,
+        amount_cents=invoice.amount_cents,
+        reference=invoice.booking_id,
+        access_token=access_token,
+    )
     invoice.xero_invoice_id = xero_inv["id"]
     invoice.status = InvoiceStatus.APPROVED
     db.session.commit()
@@ -107,4 +121,37 @@ def invoice_view(invoice_id: int):
 def admin():
     customers = Customer.query.all()
     return render_template("admin.html", customers=customers)
+
+
+# --- Xero OAuth ---
+@bp.before_app_first_request
+def init_oauth():
+    oauth.init_app(current_app)
+    oauth.register(
+        name="xero",
+        client_id=current_app.config["XERO_CLIENT_ID"],
+        client_secret=current_app.config["XERO_CLIENT_SECRET"],
+        api_base_url="https://api.xero.com/",
+        access_token_url="https://identity.xero.com/connect/token",
+        authorize_url="https://login.xero.com/identity/connect/authorize",
+        client_kwargs={
+            "scope": current_app.config["XERO_SCOPES"],
+        },
+    )
+
+
+@bp.get("/xero/connect")
+def xero_connect():
+    redirect_uri = current_app.config["XERO_REDIRECT_URI"]
+    return oauth.xero.authorize_redirect(redirect_uri)
+
+
+@bp.get("/xero/callback")
+def xero_callback():
+    token = oauth.xero.authorize_access_token()
+    # Persist minimal tokens in session (for demo). For production, persist in DB with refresh.
+    session["xero_access_token"] = token.get("access_token")
+    session["xero_refresh_token"] = token.get("refresh_token")
+    flash("Connected to Xero.")
+    return redirect(url_for("main.index"))
 
