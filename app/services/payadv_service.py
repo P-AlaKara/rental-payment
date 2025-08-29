@@ -38,6 +38,40 @@ class PayAdvantageClient:
         )
         return {"customer_id": f"cust_{uuid.uuid4().hex}", "session_id": session_id, "hosted_url": hosted_url}
 
+    def create_direct_debit_link(self, name: str, email: str, mobile: str, reference: str, redirect_url: str) -> dict:
+        """
+        Use Pay Advantage 'Create a new Direct Debit' to generate a hosted link
+        that the customer can use to complete the DDR authorization.
+        """
+        # Example real call (replace with exact schema/fields required by Pay Advantage):
+        # payload = {
+        #     "customer": {
+        #         "name": name,
+        #         "email": email,
+        #         "mobile": mobile,
+        #     },
+        #     "reference": reference,
+        #     "redirect_url": redirect_url,
+        # }
+        # resp = requests.post(
+        #     f"{self.base_url}/v3/direct_debits",
+        #     json=payload,
+        #     auth=(self.username, self.password),
+        #     timeout=30,
+        # )
+        # resp.raise_for_status()
+        # data = resp.json()
+        # return {"hosted_url": data["link"], "ddr_id": data["id"]}
+
+        # Placeholder fallback for local testing
+        session_id = uuid.uuid4().hex
+        hosted_url = (
+            f"{current_app.config['BASE_URL']}/hosted?token={session_id}"
+            f"&name={requests.utils.quote(name)}&email={requests.utils.quote(email)}"
+            f"&redirect={requests.utils.quote(redirect_url)}"
+        )
+        return {"hosted_url": hosted_url, "ddr_id": session_id}
+
     def charge_with_token(self, token: str, amount_cents: int, reference: str) -> dict:
         # Example POST with Basic Auth to charge using stored token (replace endpoint/path):
         # resp = requests.post(

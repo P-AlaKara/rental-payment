@@ -20,11 +20,12 @@ def index():
 def start_booking():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
+    mobile = request.form.get("mobile", "").strip()
     booking_id = request.form.get("booking_id", "").strip()
     amount = float(request.form.get("amount", 0))
     amount_cents = int(round(amount * 100))
 
-    if not (name and email and booking_id and amount_cents > 0):
+    if not (name and email and mobile and booking_id and amount_cents > 0):
         flash("All fields are required and amount must be positive.")
         return redirect(url_for("main.index"))
 
@@ -43,13 +44,13 @@ def start_booking():
     db.session.add(invoice)
     db.session.commit()
 
-    # Create hosted payment authority session
+    # Create direct debit request link (hosted authorization)
     payadv = PayAdvantageClient()
     redirect_url = url_for("main.hosted_callback", _external=True)
-    hosted = payadv.create_customer_and_authority(name=name, email=email, redirect_url=redirect_url)
+    hosted = payadv.create_direct_debit_link(name=name, email=email, mobile=mobile, reference=booking_id, redirect_url=redirect_url)
 
     # Store token temporarily when callback returns
-    current_app.logger.info("Hosted session created: %s", hosted)
+    current_app.logger.info("Direct debit link created: %s", hosted)
     return redirect(hosted["hosted_url"])
 
 
