@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Secure Payment Authority{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Secure Payment Authority (Simulated)</h2>
+  <p>Confirm permission to debit your account for this booking.</p>
+  <form method="post" action="/hosted/callback">
+    <input type="hidden" name="token" value="{{ token }}" />
+    <input type="hidden" name="email" value="{{ email }}" />
+    <p>
+      <label><input type="checkbox" name="agree" required /> I agree to the Direct Debit Request and authorize payments.</label>
+    </p>
+    <button type="submit">Authorize</button>
+  </form>
+</div>
+{% endblock %}
+
