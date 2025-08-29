@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, curren
 from . import db
 from .models import Customer, Invoice, InvoiceStatus, PaymentStatus
 from .services.payadv_service import PayAdvantageClient
-from .services.xero_service import XeroClient
+from .services.xero_service import XeroClient, _save_auth, get_valid_access_token
 from .services.ucollect_service import UCollectBridge
 from authlib.integrations.flask_client import OAuth
 
@@ -79,8 +79,8 @@ def hosted_callback():
 
     # Create and approve an invoice in Xero, then simulate UCollect sync and payment
     invoice = Invoice.query.filter_by(customer_id=customer.id).order_by(Invoice.id.desc()).first()
-    # Ensure we have Xero OAuth access token
-    access_token = session.get("xero_access_token")
+    # Ensure we have Xero OAuth access token persisted
+    access_token = get_valid_access_token()
     if not access_token:
         flash("Connect to Xero first.")
         return redirect(url_for("main.xero_connect"))
@@ -91,7 +91,6 @@ def hosted_callback():
         contact_email=customer.email,
         amount_cents=invoice.amount_cents,
         reference=invoice.booking_id,
-        access_token=access_token,
     )
     invoice.xero_invoice_id = xero_inv["id"]
     invoice.status = InvoiceStatus.APPROVED
@@ -149,9 +148,17 @@ def xero_connect():
 @bp.get("/xero/callback")
 def xero_callback():
     token = oauth.xero.authorize_access_token()
-    # Persist minimal tokens in session (for demo). For production, persist in DB with refresh.
-    session["xero_access_token"] = token.get("access_token")
-    session["xero_refresh_token"] = token.get("refresh_token")
+    # Discover tenant id if not configured
+    access_token = token.get("access_token")
+    headers = {"Authorization": f"Bearer {access_token}"}
+    try:
+        r = requests.get("https://api.xero.com/connections", headers=headers, timeout=30)
+        r.raise_for_status()
+        connections = r.json()
+        tenant_id = connections[0]["tenantId"] if isinstance(connections, list) and connections else None
+    except Exception:  # noqa: BLE001 - best-effort
+        tenant_id = None
+    _save_auth(token, tenant_id=tenant_id)
     flash("Connected to Xero.")
     return redirect(url_for("main.index"))
 
