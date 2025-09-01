@@ -8,7 +8,16 @@
 </head>
 <body>
 	<div class="container py-4">
-		<h1 class="mb-4">Active Bookings</h1>
+		<div class="d-flex justify-content-between align-items-center mb-3">
+			<h1 class="mb-0">Active Bookings</h1>
+			<div>
+				{% if xero_auth and xero_auth.tenant_id %}
+					<span class="badge bg-success me-2">Xero Connected</span>
+				{% else %}
+					<a href="{{ url_for('admin.xero_connect') }}" class="btn btn-sm btn-success">Connect Xero</a>
+				{% endif %}
+			</div>
+		</div>
 		<table class="table table-striped">
 			<thead>
 				<tr>

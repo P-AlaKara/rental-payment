@@ -59,3 +59,20 @@ class Payment(db.Model):
 
 	def __repr__(self) -> str:
 		return f"<Payment id={self.id} booking_id={self.booking_id} status={self.status}>"
+
+
+class XeroAuth(db.Model):
+	__tablename__ = "xero_auth"
+
+	id = db.Column(db.Integer, primary_key=True)
+	# Single row table; store tenant and OAuth tokens
+	tenant_id = db.Column(db.String(100), nullable=True)
+	access_token = db.Column(db.Text, nullable=True)
+	refresh_token = db.Column(db.Text, nullable=True)
+	access_token_expires_at = db.Column(db.DateTime, nullable=True)
+	scope = db.Column(db.Text, nullable=True)
+	created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+	updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+	def __repr__(self) -> str:
+		return f"<XeroAuth tenant_id={self.tenant_id}>"
