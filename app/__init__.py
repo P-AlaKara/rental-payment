@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -12,12 +13,12 @@ db = SQLAlchemy()
 csrf = CSRFProtect()
 _scheduler = None
 
-
 def _get_database_uri() -> str:
-	configured = os.getenv("DATABASE_URL")
-	if configured:
-		return configured
-	return "sqlite:////workspace/app.db"
+    configured = os.getenv("DATABASE_URL")
+    if configured:
+        return configured
+    db_path = Path(__file__).resolve().parent.parent / "app.db"
+    return f"sqlite:///{db_path.as_posix()}"
 
 
 def create_app() -> Flask:
