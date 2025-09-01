@@ -147,13 +147,17 @@ def edit_booking(booking_id: int):
 		recurring_cents = _to_cents(form.recurring_amount.data)
 		frequency = form.frequency.data
 
-		# Create payment schedule with Pay Advantage (stub)
+		# Create payment schedule with Pay Advantage v3
 		schedule_resp = client.create_direct_debit_schedule(
 			customer_name=booking.customer_name,
 			email=booking.email,
 			phone=booking.phone,
 			recurring_amount_cents=recurring_cents,
 			frequency=frequency,
+			description=form.description.data,
+			recurring_date_start=form.recurring_date_start.data,
+			reminder_days=form.reminder_days.data,
+			upfront_amount_cents=upfront_cents,
 		)
 		provider_schedule_id = schedule_resp.get("schedule_id")
 
@@ -209,6 +213,8 @@ def edit_booking(booking_id: int):
 		form.upfront_amount.data = booking.payment_schedule.upfront_amount_cents / 100.0
 		form.recurring_amount.data = booking.payment_schedule.recurring_amount_cents / 100.0
 		form.frequency.data = booking.payment_schedule.frequency
+		if booking.payment_schedule.next_debit_date:
+			form.recurring_date_start.data = booking.payment_schedule.next_debit_date
 
 	return render_template("admin/edit_booking.html", booking=booking, form=form)
 

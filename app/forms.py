@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, DateField, DecimalField, SelectField, SubmitField
+from wtforms import StringField, DateField, DecimalField, SelectField, SubmitField, IntegerField
 from wtforms.validators import DataRequired, Email, Length, NumberRange
 
 
@@ -20,4 +20,7 @@ class PaymentScheduleForm(FlaskForm):
 		choices=[("weekly", "Weekly"), ("fortnightly", "Fortnightly"), ("monthly", "Monthly")],
 		validators=[DataRequired()],
 	)
+	recurring_date_start = DateField("Recurring Start Date", validators=[DataRequired()])
+	description = StringField("Payment Description", validators=[DataRequired(), Length(max=50)])
+	reminder_days = IntegerField("Reminder Days (0-3)", validators=[DataRequired(), NumberRange(min=0, max=3)])
 	submit = SubmitField("Set Direct Debit")

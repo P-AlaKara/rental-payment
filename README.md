@@ -54,7 +54,7 @@ You can authenticate with either an API key or with username/password. If you do
 API key method:
 ```
 PAYADVANTAGE_API_KEY=your_payadvantage_api_key
-PAYADVANTAGE_BASE_URL=https://api.sandbox.payadvantage.com
+PAYADVANTAGE_BASE_URL=https://api.test.payadvantage.com.au
 PAYADVANTAGE_REDIRECT_URL=http://localhost:5000/admin/bookings
 ```
 
@@ -62,9 +62,24 @@ Username/password method:
 ```
 PAYADVANTAGE_USERNAME=your_username
 PAYADVANTAGE_PASSWORD=your_password
-PAYADVANTAGE_BASE_URL=https://api.sandbox.payadvantage.com
+PAYADVANTAGE_BASE_URL=https://api.test.payadvantage.com.au
 PAYADVANTAGE_REDIRECT_URL=http://localhost:5000/admin/bookings
 ```
+
+For production:
+```
+PAYADVANTAGE_BASE_URL=https://api.payadvantage.com.au
+```
+
+Endpoint and payload (v3):
+- Direct Debits: POST `/v3/direct_debits`
+- Form fields supported:
+  - Description (max 50 chars)
+  - Upfront Amount (optional)
+  - Recurring Amount
+  - Recurring Start Date
+  - Frequency (weekly, fortnightly, monthly)
+  - Reminder Days (0-3)
 
 2. The app will create direct debit schedules against the configured base URL using the chosen authentication.
 
