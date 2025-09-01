@@ -1,9 +1,12 @@
-from datetime import date, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from datetime import date, timedelta, datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+import os
+import uuid
+import requests
 from sqlalchemy import func
 from . import db
 from .forms import PaymentScheduleForm
-from .models import Booking, PaymentSchedule, Payment
+from .models import Booking, PaymentSchedule, Payment, XeroAuth
 from .pay_advantage import PayAdvantageClient
 from .xero_client import XeroClient
 
@@ -18,7 +21,104 @@ def _to_cents(amount_decimal) -> int:
 @admin_bp.route("/bookings")
 def bookings_list():
 	bookings = Booking.query.filter_by(status="active").order_by(Booking.created_at.desc()).all()
-	return render_template("admin/bookings_list.html", bookings=bookings)
+	xero_auth = XeroAuth.query.first()
+	return render_template("admin/bookings_list.html", bookings=bookings, xero_auth=xero_auth)
+
+
+@admin_bp.route("/xero/connect")
+def xero_connect():
+	client_id = os.getenv("XERO_CLIENT_ID")
+	client_secret = os.getenv("XERO_CLIENT_SECRET")
+	redirect_uri = os.getenv("XERO_REDIRECT_URI", "http://localhost:5000/admin/xero/callback")
+	if not client_id or not client_secret:
+		flash("Xero client id/secret are not configured.", "danger")
+		return redirect(url_for("admin.bookings_list"))
+
+	scopes = os.getenv(
+		"XERO_SCOPES",
+		"offline_access accounting.transactions accounting.contacts",
+	)
+	state = uuid.uuid4().hex
+	session["xero_oauth_state"] = state
+	authorize_url = (
+		"https://login.xero.com/identity/connect/authorize"
+		+ "?response_type=code"
+		+ f"&client_id={client_id}"
+		+ f"&redirect_uri={redirect_uri}"
+		+ f"&scope={requests.utils.quote(scopes)}"
+		+ f"&state={state}"
+	)
+	return redirect(authorize_url)
+
+
+@admin_bp.route("/xero/callback")
+def xero_callback():
+	code = request.args.get("code")
+	state = request.args.get("state")
+	stored_state = session.pop("xero_oauth_state", None)
+	if not code:
+		flash("Xero authorization failed: missing code.", "danger")
+		return redirect(url_for("admin.bookings_list"))
+	if not stored_state or stored_state != state:
+		flash("Xero authorization failed: invalid state.", "danger")
+		return redirect(url_for("admin.bookings_list"))
+
+	client_id = os.getenv("XERO_CLIENT_ID")
+	client_secret = os.getenv("XERO_CLIENT_SECRET")
+	redirect_uri = os.getenv("XERO_REDIRECT_URI", "http://localhost:5000/admin/xero/callback")
+
+	try:
+		# Exchange code for tokens
+		token_resp = requests.post(
+			"https://identity.xero.com/connect/token",
+			data={
+				"grant_type": "authorization_code",
+				"code": code,
+				"redirect_uri": redirect_uri,
+				"client_id": client_id,
+				"client_secret": client_secret,
+			},
+			timeout=30,
+		)
+		token_resp.raise_for_status()
+		payload = token_resp.json()
+		access_token = payload.get("access_token")
+		refresh_token = payload.get("refresh_token")
+		expires_in = int(payload.get("expires_in", 1800))
+		scope = payload.get("scope")
+		if not access_token or not refresh_token:
+			raise RuntimeError("Missing tokens in Xero response")
+
+		# Get tenant (connection)
+		conn_resp = requests.get(
+			"https://api.xero.com/connections",
+			headers={"Authorization": f"Bearer {access_token}"},
+			timeout=30,
+		)
+		conn_resp.raise_for_status()
+		connections = conn_resp.json() or []
+		if not connections:
+			raise RuntimeError("No Xero tenants authorized for this connection")
+		tenant_id = connections[0].get("tenantId")
+		if not tenant_id:
+			raise RuntimeError("Missing tenantId in Xero connections response")
+
+		expires_at = datetime.utcnow() + timedelta(seconds=expires_in - 60)
+		xero_auth = XeroAuth.query.first()
+		if not xero_auth:
+			xero_auth = XeroAuth()
+			db.session.add(xero_auth)
+		xero_auth.tenant_id = tenant_id
+		xero_auth.access_token = access_token
+		xero_auth.refresh_token = refresh_token
+		xero_auth.access_token_expires_at = expires_at
+		xero_auth.scope = scope
+		db.session.commit()
+		flash("Xero connected successfully.", "success")
+	except Exception as exc:
+		flash(f"Failed to connect Xero: {exc}", "danger")
+
+	return redirect(url_for("admin.bookings_list"))
 
 
 @admin_bp.route("/report")

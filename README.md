@@ -26,8 +26,35 @@ python run.py
 ```
 
 ### Integrations
-- Pay Advantage and Xero clients are stub-friendly. Replace with real API keys and endpoints in `app/pay_advantage.py` and `app/xero_client.py`.
 - Webhook endpoint: `/webhooks/payadvantage`.
+
+### Xero OAuth Setup
+1. Create a Xero app in the Xero Developer portal.
+2. Configure the Redirect URI to:
+   - `http://localhost:5000/admin/xero/callback`
+3. Add scopes:
+   - `offline_access accounting.transactions accounting.contacts`
+4. Add the following environment variables to your `.env`:
+```
+XERO_CLIENT_ID=your_xero_client_id
+XERO_CLIENT_SECRET=your_xero_client_secret
+XERO_REDIRECT_URI=http://localhost:5000/admin/xero/callback
+# Optional:
+XERO_SCOPES=offline_access accounting.transactions accounting.contacts
+XERO_SALES_ACCOUNT_CODE=200
+```
+5. Start the app and visit `/admin`, then click "Connect Xero".
+6. On first connect, we exchange the code for tokens, fetch your tenant id, and store the refresh token so you only authorize once. Tokens are persisted in the database (`xero_auth` table).
+
+### Pay Advantage Setup
+1. Obtain your API key from your Pay Advantage sandbox or production account.
+2. Add to your `.env`:
+```
+PAYADVANTAGE_API_KEY=your_payadvantage_api_key
+PAYADVANTAGE_BASE_URL=https://api.sandbox.payadvantage.com
+PAYADVANTAGE_REDIRECT_URL=http://localhost:5000/admin/bookings
+```
+3. The app will create direct debit schedules against the configured base URL using your API key.
 
 ### Admin
 - Admin pages are under `/admin`.
