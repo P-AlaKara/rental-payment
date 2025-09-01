@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Car Rental Booking</title>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light">
+	<div class="container py-5">
+		<h1 class="mb-4">Car Rental Booking</h1>
+		{% with messages = get_flashed_messages(with_categories=true) %}
+			{% if messages %}
+				<div>
+					{% for category, message in messages %}
+						<div class="alert alert-{{ category }}">{{ message }}</div>
+					{% endfor %}
+				</div>
+			{% endif %}
+		{% endwith %}
+		<form method="post" class="card p-4 bg-white shadow-sm">
+			{{ form.hidden_tag() }}
+			<div class="row g-3">
+				<div class="col-md-6">
+					<label class="form-label">{{ form.customer_name.label }}</label>
+					{{ form.customer_name(class="form-control") }}
+				</div>
+				<div class="col-md-6">
+					<label class="form-label">{{ form.email.label }}</label>
+					{{ form.email(class="form-control") }}
+				</div>
+				<div class="col-md-6">
+					<label class="form-label">{{ form.phone.label }}</label>
+					{{ form.phone(class="form-control") }}
+				</div>
+				<div class="col-md-3">
+					<label class="form-label">{{ form.start_date.label }}</label>
+					{{ form.start_date(class="form-control", type="date") }}
+				</div>
+				<div class="col-md-3">
+					<label class="form-label">{{ form.end_date.label }}</label>
+					{{ form.end_date(class="form-control", type="date") }}
+				</div>
+			</div>
+			<div class="mt-4">
+				{{ form.submit(class="btn btn-primary") }}
+			</div>
+		</form>
+		<div class="mt-4">
+			<a href="{{ url_for('admin.bookings_list') }}" class="btn btn-outline-secondary btn-sm">Admin</a>
+		</div>
+	</div>
+</body>
+</html>
