@@ -77,15 +77,21 @@ class PayAdvantageClient:
 		)
 		if not response.ok:
 			# Try to surface provider error message
-			body = None
 			try:
-				body = response.json()
+				body_obj = response.json()
 			except Exception:
-				body = response.text
+				body_obj = response.text
 			self.logger.error(
 				"PayAdvantage error: status=%s body=%s",
 				response.status_code,
-				body,
+				body_obj,
 			)
-		response.raise_for_status()
+			message = None
+			if isinstance(body_obj, dict):
+				message = body_obj.get("message") or body_obj.get("error") or str(body_obj)
+			else:
+				message = str(body_obj)
+			raise requests.HTTPError(
+				f"PayAdvantage {response.status_code}: {message}", response=response
+			)
 		return response.json()
