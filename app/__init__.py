@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from flask import Flask
+import logging
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -54,5 +55,10 @@ def create_app() -> Flask:
 		_scheduler = BackgroundScheduler(timezone="UTC")
 		schedule_jobs(_scheduler, app)
 		_scheduler.start()
+
+	# Ensure basic logging is configured
+	if not app.logger.handlers:
+		level = os.getenv("LOG_LEVEL", "INFO").upper()
+		logging.basicConfig(level=getattr(logging, level, logging.INFO))
 
 	return app
