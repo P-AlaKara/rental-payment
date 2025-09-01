@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 from datetime import date
 import requests
 from requests.auth import HTTPBasicAuth
@@ -13,6 +14,7 @@ class PayAdvantageClient:
 		self.api_key = os.getenv("PAYADVANTAGE_API_KEY")
 		self.username = os.getenv("PAYADVANTAGE_USERNAME")
 		self.password = os.getenv("PAYADVANTAGE_PASSWORD")
+		self.logger = logging.getLogger(__name__)
 
 	def create_direct_debit_schedule(
 		self,
@@ -43,6 +45,14 @@ class PayAdvantageClient:
 		if not self.api_key and self.username and self.password:
 			auth = HTTPBasicAuth(self.username, self.password)
 
+		# Log which auth path is used (without secrets)
+		auth_mode = "api_key" if self.api_key else ("basic" if auth else "none")
+		self.logger.info(
+			"PayAdvantage request: POST %s, auth=%s",
+			f"{self.base_url}/v3/direct_debits",
+			auth_mode,
+		)
+
 		# Convert cents to dollars as per v3 API
 		recurring_amount = round(recurring_amount_cents / 100.0, 2)
 		upfront_amount = round(upfront_amount_cents / 100.0, 2) if upfront_amount_cents and upfront_amount_cents > 0 else None
@@ -65,5 +75,17 @@ class PayAdvantageClient:
 			json=payload,
 			timeout=30,
 		)
+		if not response.ok:
+			# Try to surface provider error message
+			body = None
+			try:
+				body = response.json()
+			except Exception:
+				body = response.text
+			self.logger.error(
+				"PayAdvantage error: status=%s body=%s",
+				response.status_code,
+				body,
+			)
 		response.raise_for_status()
 		return response.json()
