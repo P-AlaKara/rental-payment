@@ -18,16 +18,30 @@
 				{{ form.hidden_tag() }}
 				<div class="row g-3">
 					<div class="col-md-4">
-						<label class="form-label">{{ form.upfront_amount.label }}</label>
+						<label class="form-label" title="Optional one-off amount charged first">{{ form.upfront_amount.label }}</label>
 						{{ form.upfront_amount(class="form-control", step="0.01") }}
 					</div>
 					<div class="col-md-4">
-						<label class="form-label">{{ form.recurring_amount.label }}</label>
+						<label class="form-label" title="Amount charged each instalment (AUD)">{{ form.recurring_amount.label }}</label>
 						{{ form.recurring_amount(class="form-control", step="0.01") }}
 					</div>
 					<div class="col-md-4">
-						<label class="form-label">{{ form.frequency.label }}</label>
+						<label class="form-label" title="How often instalments occur">{{ form.frequency.label }}</label>
 						{{ form.frequency(class="form-select") }}
+					</div>
+				</div>
+				<div class="row g-3 mt-1">
+					<div class="col-md-4">
+						<label class="form-label" title="Date on which recurring payments begin">{{ form.recurring_date_start.label }}</label>
+						{{ form.recurring_date_start(class="form-control") }}
+					</div>
+					<div class="col-md-4">
+						<label class="form-label" title="Shown to the customer; purpose of payments">{{ form.description.label }}</label>
+						{{ form.description(class="form-control", maxlength="50", placeholder="e.g. Rental payment for Booking #{{ booking.id }}") }}
+					</div>
+					<div class="col-md-4">
+						<label class="form-label" title="Days before debit to send reminder (0-3)">{{ form.reminder_days.label }}</label>
+						{{ form.reminder_days(class="form-control", min="0", max="3") }}
 					</div>
 				</div>
 				<div class="mt-3">
