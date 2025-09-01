@@ -47,14 +47,26 @@ XERO_SALES_ACCOUNT_CODE=200
 6. On first connect, we exchange the code for tokens, fetch your tenant id, and store the refresh token so you only authorize once. Tokens are persisted in the database (`xero_auth` table).
 
 ### Pay Advantage Setup
-1. Obtain your API key from your Pay Advantage sandbox or production account.
-2. Add to your `.env`:
+You can authenticate with either an API key or with username/password. If you don't have an API key, set username and password.
+
+1. Add to your `.env` (choose ONE auth method):
+
+API key method:
 ```
 PAYADVANTAGE_API_KEY=your_payadvantage_api_key
 PAYADVANTAGE_BASE_URL=https://api.sandbox.payadvantage.com
 PAYADVANTAGE_REDIRECT_URL=http://localhost:5000/admin/bookings
 ```
-3. The app will create direct debit schedules against the configured base URL using your API key.
+
+Username/password method:
+```
+PAYADVANTAGE_USERNAME=your_username
+PAYADVANTAGE_PASSWORD=your_password
+PAYADVANTAGE_BASE_URL=https://api.sandbox.payadvantage.com
+PAYADVANTAGE_REDIRECT_URL=http://localhost:5000/admin/bookings
+```
+
+2. The app will create direct debit schedules against the configured base URL using the chosen authentication.
 
 ### Admin
 - Admin pages are under `/admin`.
