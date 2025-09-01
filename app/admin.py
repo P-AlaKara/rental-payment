@@ -148,17 +148,27 @@ def edit_booking(booking_id: int):
 		frequency = form.frequency.data
 
 		# Create payment schedule with Pay Advantage v3
-		schedule_resp = client.create_direct_debit_schedule(
-			customer_name=booking.customer_name,
-			email=booking.email,
-			phone=booking.phone,
-			recurring_amount_cents=recurring_cents,
-			frequency=frequency,
-			description=form.description.data,
-			recurring_date_start=form.recurring_date_start.data,
-			reminder_days=form.reminder_days.data,
-			upfront_amount_cents=upfront_cents,
-		)
+		try:
+			schedule_resp = client.create_direct_debit_schedule(
+				customer_name=booking.customer_name,
+				email=booking.email,
+				phone=booking.phone,
+				recurring_amount_cents=recurring_cents,
+				frequency=frequency,
+				description=form.description.data,
+				recurring_date_start=form.recurring_date_start.data,
+				reminder_days=form.reminder_days.data,
+				upfront_amount_cents=upfront_cents,
+			)
+		except requests.HTTPError as exc:
+			provider_msg = None
+			if getattr(exc, "response", None) is not None:
+				try:
+					provider_msg = exc.response.json()
+				except Exception:
+					provider_msg = exc.response.text
+			flash(f"PayAdvantage error: {exc} | Details: {provider_msg}", "danger")
+			return render_template("admin/edit_booking.html", booking=booking, form=form)
 		provider_schedule_id = schedule_resp.get("schedule_id")
 
 		# Store schedule
